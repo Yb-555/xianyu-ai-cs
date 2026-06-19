@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>闲鱼工作台自动化 · 后台</title>
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --line:#e6e8eb; --pri:#1677ff; --txt:#1f2329; --sub:#8a8f99; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.6 -apple-system,"Microsoft YaHei",sans-serif; background:var(--bg); color:var(--txt); }
+  header { background:var(--card); border-bottom:1px solid var(--line); padding:12px 22px; display:flex; align-items:center; gap:14px; position:sticky; top:0; z-index:20; height:49px; }
+  header h1 { font-size:16px; margin:0; font-weight:700; }
+  header .tag { font-size:12px; color:var(--sub); margin-left:auto; text-align:right; line-height:1.4; }
+  .layout { display:flex; align-items:flex-start; }
+  aside.tabs { width:206px; flex:0 0 206px; background:var(--card); border-right:1px solid var(--line); padding:8px 10px 30px; position:sticky; top:49px; height:calc(100vh - 49px); overflow-y:auto; display:flex; flex-direction:column; gap:1px; }
+  .navgroup { font-size:11px; color:var(--sub); padding:14px 12px 5px; letter-spacing:1px; }
+  .tabs button { display:flex; align-items:center; gap:10px; width:100%; text-align:left; border:0; background:none; padding:9px 12px; border-radius:8px; cursor:pointer; font-size:13.5px; color:var(--txt); transition:background .12s; }
+  .tabs button:hover { background:var(--bg); }
+  .tabs button.on { background:#e8f1ff; color:var(--pri); font-weight:600; }
+  .tabs button .ico { font-size:15px; width:18px; text-align:center; flex:0 0 18px; }
+  main { flex:1; min-width:0; padding:22px 26px; max-width:1080px; }
+  @media(max-width:760px){
+    .layout { flex-direction:column; }
+    aside.tabs { width:100%; flex:none; height:auto; position:static; flex-direction:row; flex-wrap:nowrap; overflow-x:auto; border-right:0; border-bottom:1px solid var(--line); padding:6px 8px; }
+    .navgroup { display:none; }
+    .tabs button { width:auto; white-space:nowrap; }
+    main { padding:16px; }
+  }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:18px; margin-bottom:18px; }
+  .card h3 { margin:0 0 14px; font-size:15px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  input, textarea, select { border:1px solid var(--line); border-radius:7px; padding:8px 10px; font:inherit; width:100%; }
+  textarea { min-height:60px; resize:vertical; }
+  label { font-size:12px; color:var(--sub); display:block; margin:0 0 4px; }
+  .field { flex:1; min-width:160px; }
+  button.btn { background:var(--pri); color:#fff; border:0; border-radius:7px; padding:8px 16px; cursor:pointer; font:inherit; }
+  button.btn.ghost { background:#fff; color:var(--pri); border:1px solid var(--pri); }
+  button.btn.danger { background:#fff; color:#d4380d; border:1px solid #ffccc7; padding:4px 10px; font-size:12px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th,td { text-align:left; padding:9px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--sub); font-weight:600; }
+  .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+  .stat { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  .stat .n { font-size:26px; font-weight:700; color:var(--pri); }
+  .stat .l { font-size:12px; color:var(--sub); }
+  .pill { font-size:11px; padding:1px 8px; border-radius:10px; }
+  .pill.ai { background:#e6f4ff; color:#1677ff; }
+  .pill.rule { background:#f6ffed; color:#389e0d; }
+  .pill.fallback { background:#fff7e6; color:#d46b08; }
+  .muted { color:var(--sub); }
+  .ok { color:#389e0d; } .no { color:#cf1322; }
+  .reply-box { background:#f0f7ff; border:1px solid #bae0ff; border-radius:8px; padding:12px; margin-top:10px; white-space:pre-wrap; }
+  .kv { display:grid; grid-template-columns:160px 1fr; gap:8px 14px; font-size:13px; }
+  .kv .k { color:var(--sub); }
+  .hint { font-size:12px; color:var(--sub); margin-top:6px; }
+  .pill.collect { background:#f9f0ff; color:#722ed1; }
+  .pill.answer { background:#e6fffb; color:#08979c; }
+  .pill.none { background:#f0f0f0; color:#8a8f99; }
+  .pill.done { background:#f6ffed; color:#389e0d; }
+  .slot-row { display:flex; gap:8px; margin-bottom:6px; align-items:center; }
+  .slot-row input { flex:1; }
+  .slot-row input[type=text].k { max-width:120px; }
+  .chat { border:1px solid var(--line); border-radius:10px; height:420px; overflow-y:auto; padding:14px; background:#fafbfc; display:flex; flex-direction:column; gap:10px; }
+  .msg { max-width:74%; padding:8px 12px; border-radius:12px; white-space:pre-wrap; font-size:13px; line-height:1.5; }
+  .msg.buyer { align-self:flex-end; background:var(--pri); color:#fff; border-bottom-right-radius:3px; }
+  .msg.seller { align-self:flex-start; background:#fff; border:1px solid var(--line); border-bottom-left-radius:3px; }
+  .msg .who { font-size:10px; opacity:.7; margin-bottom:2px; }
+  .twocol { display:grid; grid-template-columns:1fr 320px; gap:16px; align-items:start; }
+  @media(max-width:880px){ .twocol{ grid-template-columns:1fr; } }
+  .slotbar { display:flex; justify-content:space-between; font-size:12px; padding:5px 0; border-bottom:1px dashed var(--line); }
+  .slotbar .v { color:#389e0d; font-weight:600; }
+  .slotbar .v.empty { color:#cf1322; font-weight:400; }
+  .doc-box { background:#f6ffed; border:1px solid #b7eb8f; border-radius:8px; padding:12px; white-space:pre-wrap; font-size:13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🐟 闲鱼工作台自动化</h1>
+  <span class="tag" id="hdrCfg">加载中…</span>
+</header>
+<div class="layout">
+<aside class="tabs">
+  <div class="navgroup">运营</div>
+  <button data-tab="overview" class="on"><span class="ico">📊</span>概览</button>
+  <button data-tab="memory"><span class="ico">🧠</span>客户记忆</button>
+  <button data-tab="logs"><span class="ico">📜</span>回复日志</button>
+  <div class="navgroup">AI 配置</div>
+  <button data-tab="agents"><span class="ico">🪪</span>身份管理</button>
+  <button data-tab="pricing"><span class="ico">💰</span>报价策略</button>
+  <div class="navgroup">工具</div>
+  <button data-tab="preview"><span class="ico">💬</span>AI 试聊</button>
+  <div class="navgroup">系统</div>
+  <button data-tab="settings"><span class="ico">⚙️</span>设置</button>
+</aside>
+<main>
+
+  <!-- 概览 -->
+  <section id="overview">
+    <div class="card" id="workerCard" style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <h3 style="margin:0 0 6px">自动回复 Worker</h3>
+        <div id="workerState" class="muted">检查中…</div>
+      </div>
+      <div class="row">
+        <button class="btn" id="btnStart" onclick="workerStart()">▶ 上线运行</button>
+        <button class="btn danger" id="btnStop" style="padding:8px 16px;font-size:14px" onclick="workerStop()">■ 关闭</button>
+      </div>
+    </div>
+    <div class="stats" id="statCards"></div>
+    <div class="card" style="margin-top:18px">
+      <h3>说明</h3>
+      <p class="muted">回复决策优先级：<b>指定商品 &gt; 商品专属关键词 &gt; 通用关键词 &gt; 默认 &gt; AI</b>。
+        Worker（接管 Edge 监听消息）用上方「▶ 上线运行 / ■ 关闭」按钮控制即可，首次上线会自动拉起调试 Edge。</p>
+    </div>
+  </section>
+
+  <!-- 身份管理 -->
+  <section id="agents" hidden>
+    <div class="card">
+      <h3>🤖 贴链接，AI 自动生成身份</h3>
+      <div class="row">
+        <div class="field"><input id="agCollect" placeholder="贴闲鱼商品链接 或 item_id，自动采集商品信息并由 AI 生成身份"></div>
+        <button class="btn" onclick="collectToForm()">AI 生成身份</button>
+      </div>
+      <div id="agCollectOut" class="hint">先在「概览」点「上线运行」启动 Edge（采集复用其登录态）。AI 会按商品类型自动选目标（服务类→收集需求，实物→答疑），生成后可在下方修改再保存。</div>
+    </div>
+    <div class="card">
+      <h3 id="agFormTitle">新建身份</h3>
+      <input type="hidden" id="agId">
+      <div class="row">
+        <div class="field"><label>身份名称</label><input id="agName" placeholder="如：网页代做 / 数码配件答疑"></div>
+        <div class="field" style="max-width:120px"><label>优先级</label><input id="agPri" type="number" value="0"></div>
+        <div class="field" style="max-width:110px"><label>启用</label>
+          <select id="agEnabled"><option value="1">启用</option><option value="0">停用</option></select></div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <div class="field"><label>命中关键词（逗号分隔，买家消息含其一即用此身份）</label><input id="agKeywords" placeholder="网页,网站,建站"></div>
+        <div class="field"><label>命中商品ID（逗号分隔，可选）</label><input id="agItemIds" placeholder="800123,800456"></div>
+        <div class="field"><label>命中链接关键词（逗号分隔，可选，支持 * 通配 / re:正则）</label><input id="agUrls" placeholder="*webdesign* 或 re:web\\d+"></div>
+      </div>
+      <div style="margin-top:10px">
+        <label>这个身份的人设（AI 以什么身份、口吻回复）</label>
+        <textarea id="agPersona" style="min-height:90px" placeholder="你是承接网页代做的开发者本人，专业靠谱…"></textarea>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div class="field" style="max-width:200px"><label>目标类型</label>
+          <select id="agGoalType" onchange="onGoalTypeChange()">
+            <option value="none">无目标（仅按人设回复）</option>
+            <option value="collect">收集需求型（问到关键信息→生成需求文档）</option>
+            <option value="answer">答疑型（解答+告知时间，点到为止）</option>
+          </select></div>
+        <div class="field"><label>目标描述</label><input id="agGoalText" placeholder="了解客户要做什么、用途、样式要求…掌握关键信息即可，点到为止"></div>
+      </div>
+      <div id="agSlotsWrap" style="margin-top:12px" hidden>
+        <label>要收集的关键信息（槽位）—— AI 只追问还没问到的，集齐后停止追问并生成需求文档</label>
+        <div id="agSlots"></div>
+        <button class="btn ghost" style="margin-top:6px" onclick="addSlot()">+ 加一个信息点</button>
+      </div>
+      <div style="margin-top:14px">
+        <button class="btn" onclick="saveAgent()">保存身份</button>
+        <button class="btn ghost" onclick="resetAgentForm()">清空表单</button>
+        <span id="agSaved" class="ok" style="margin-left:10px"></span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>身份列表 <span class="muted" id="agCount"></span></h3>
+      <table><thead><tr><th>名称</th><th>命中条件</th><th>目标</th><th>优先级</th><th>状态</th><th></th></tr></thead>
+      <tbody id="agList"></tbody></table>
+    </div>
+  </section>
+
+  <!-- 报价策略 -->
+  <section id="pricing" hidden>
+    <div class="card">
+      <h3 id="prFormTitle">新增/编辑报价策略</h3>
+      <div class="row">
+        <div class="field"><label>产品类目（唯一）</label><input id="prCategory" placeholder="如：小程序 / 网页定制 / 自动化脚本"></div>
+        <div class="field" style="max-width:180px"><label>参考报价区间</label><input id="prRange" placeholder="如：50-300元 / 8.8元起"></div>
+        <div class="field" style="max-width:130px"><label>档位</label>
+          <select id="prTier"><option value="low_price">低价</option><option value="standard">标准</option><option value="premium">高端</option></select></div>
+        <div class="field" style="max-width:110px"><label>启用</label>
+          <select id="prEnabled"><option value="1">启用</option><option value="0">停用</option></select></div>
+      </div>
+      <div style="margin-top:8px">
+        <label>命中关键词（逗号分隔，含其一或身份名含它即套用此报价）</label>
+        <input id="prKeywords" placeholder="小程序,微信小程序,公众号">
+      </div>
+      <div style="margin-top:10px">
+        <label>基础报价话术（base_prompt）</label>
+        <textarea id="prBase" style="min-height:90px" placeholder="报价原则、适合的需求、价格控制、语气…"></textarea>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div class="field"><label>低预算处理（客户说便宜/预算有限时追加）</label>
+          <textarea id="prLow" style="min-height:70px"></textarea></div>
+        <div class="field"><label>加售引导（upselling）</label>
+          <textarea id="prUp" style="min-height:70px"></textarea></div>
+      </div>
+      <div style="margin-top:12px">
+        <button class="btn" onclick="savePricing()">保存策略</button>
+        <button class="btn ghost" onclick="resetPricingForm()">清空表单</button>
+        <span id="prSaved" class="ok" style="margin-left:10px"></span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>报价策略列表 <span class="muted" id="prCount"></span></h3>
+      <table><thead><tr><th>类目</th><th>报价区间</th><th>关键词</th><th>档位</th><th>状态</th><th></th></tr></thead>
+      <tbody id="prList"></tbody></table>
+      <div class="hint">报价话术会按命中类目自动注入 AI 的回复（在「AI 试聊」里可验证效果）。</div>
+    </div>
+  </section>
+
+  <!-- 试聊（多轮，模拟客户与 AI 对话，不发送到闲鱼） -->
+  <section id="preview" hidden>
+    <div class="card">
+      <h3>AI 试聊 · 模拟客户对话（不会发送到闲鱼）</h3>
+      <div class="row">
+        <div class="field" style="max-width:240px"><label>用哪个身份</label>
+          <select id="tcPersona"><option value="">（按商品/关键词自动判断）</option></select></div>
+        <div class="field" style="max-width:160px"><label>商品ID(可选)</label><input id="tcItem" placeholder="自动判断身份用"></div>
+        <div class="field" style="max-width:220px"><label>商品链接(可选)</label><input id="tcLink"></div>
+        <div><label>&nbsp;</label><button class="btn ghost" onclick="resetTestChat()">🗑 重置对话</button></div>
+      </div>
+      <div class="hint">选定身份后可连续对话，AI 会按该身份的目标推进、并对这个试聊会话单独记忆。换商品测试请先「重置对话」。</div>
+    </div>
+    <div class="twocol">
+      <div class="card">
+        <div class="chat" id="tcChat"></div>
+        <div class="row" style="margin-top:10px">
+          <div class="field"><input id="tcMsg" placeholder="以买家身份说点什么，回车发送" onkeydown="if(event.key==='Enter')sendTestChat()"></div>
+          <button class="btn" onclick="sendTestChat()">发送</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">本次会话记忆</h3>
+        <div id="tcMem" class="muted">还没开始对话</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 客户记忆 -->
+  <section id="memory" hidden>
+    <div class="card">
+      <h3>客户记忆 <button class="btn ghost" style="float:right" onclick="loadMemList()">刷新</button></h3>
+      <div class="hint">每个客户（按会话）一份独立记忆，AI 据此记住其需求、互不串台。可查看 / 编辑 / 清空。</div>
+      <table><thead><tr><th>客户</th><th>商品</th><th>身份</th><th>需求摘要</th><th>目标</th><th>未读</th><th>更新</th><th></th></tr></thead>
+      <tbody id="memList"></tbody></table>
+    </div>
+    <div class="card" id="memDetailCard" hidden>
+      <h3>记忆详情 <span class="muted" id="memDetailKey"></span></h3>
+      <div class="twocol">
+        <div>
+          <label>对话记录</label>
+          <div class="chat" id="memMsgs" style="height:300px"></div>
+        </div>
+        <div>
+          <label>需求摘要（可编辑）</label>
+          <textarea id="memSummary" style="min-height:90px"></textarea>
+          <label style="margin-top:8px">关键信息槽位 JSON（可编辑）</label>
+          <textarea id="memSlots" style="min-height:80px;font-family:monospace"></textarea>
+          <div style="margin-top:8px">
+            <button class="btn" onclick="saveMemDetail()">保存修改</button>
+            <span id="memSaved" class="ok" style="margin-left:8px"></span>
+          </div>
+        </div>
+      </div>
+      <div id="memDocWrap" style="margin-top:14px" hidden>
+        <label>📄 已生成的需求文档（可照此完成订单）</label>
+        <div class="doc-box" id="memDoc"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 日志 -->
+  <section id="logs" hidden>
+    <div class="card">
+      <h3>回复日志 <button class="btn ghost" style="float:right" onclick="loadLogs()">刷新</button></h3>
+      <table><thead><tr><th>时间</th><th>买家消息</th><th>回复</th><th>来源</th><th>已发</th></tr></thead>
+      <tbody id="lList"></tbody></table>
+    </div>
+  </section>
+
+  <!-- 设置 -->
+  <section id="settings" hidden>
+    <div class="card">
+      <h3>默认人设（未命中任何身份时使用）</h3>
+      <label>按商品切换的多身份在「身份管理」里配；这里是兜底人设，决定 AI 以什么身份、口吻回复</label>
+      <textarea id="pPersona" style="min-height:150px"></textarea>
+      <div style="margin-top:10px">
+        <button class="btn" onclick="savePersona()">保存默认人设</button>
+        <span id="pSaved" class="ok" style="margin-left:10px"></span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>最终注入 AI 的 system prompt（预览）</h3>
+      <div class="reply-box" id="pPromptPreview" style="background:#fafafa;border-color:#eee"></div>
+    </div>
+    <div class="card">
+      <h3>按商品切换的身份</h3>
+      <div id="pRouteList" class="muted">加载中…</div>
+      <div class="hint">在「身份管理」标签里增删改。</div>
+    </div>
+    <div class="card">
+      <h3>当前配置（只读，改 config.yml 后重启生效）</h3>
+      <div class="kv" id="cfgView"></div>
+      <div class="hint">敏感信息（API Key）不在此显示。修改请编辑 <code>D:\xianyu\v2\config.yml</code>。</div>
+    </div>
+  </section>
+
+</main>
+</div>
+<script>
+const api = (p, opt) => fetch('/api'+p, opt).then(r=>r.json());
+const esc = s => (s==null?'':String(s)).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const fmt = ts => new Date(ts*1000).toLocaleString('zh-CN',{hour12:false});
+
+// tab 切换
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+  document.querySelectorAll('main section').forEach(s=>s.hidden=true);
+  document.getElementById(b.dataset.tab).hidden=false;
+  if(b.dataset.tab==='agents') loadAgents();
+  if(b.dataset.tab==='pricing') loadPricing();
+  if(b.dataset.tab==='preview') loadTestChat();
+  if(b.dataset.tab==='memory') loadMemList();
+  if(b.dataset.tab==='logs') loadLogs();
+  if(b.dataset.tab==='settings'){ loadCfg(); loadPersona(); }
+  if(b.dataset.tab==='overview'){ loadStats(); loadWorker(); loadPersona(); }
+});
+
+// Worker 启停
+async function loadWorker(){
+  let s; try { s = await api('/worker'); } catch { return; }
+  const el = document.getElementById('workerState');
+  const hbTxt = s.heartbeat_age==null ? '无'
+    : (s.heartbeat_age<90 ? s.heartbeat_age+'秒前'
+       : `<b class="no">${Math.round(s.heartbeat_age)}秒前(超时)</b>`);
+  if(s.running && s.healthy){
+    el.innerHTML = `<span class="ok">● 运行中</span>（PID ${s.pid} · 心跳 ${hbTxt}），正在自动回复买家消息`;
+  } else if(s.intended && s.auto_restart_paused){
+    el.innerHTML = `<span class="no">● 连续重启失败</span>，已暂停自动重启。请看 logs/worker.log，修好后点「上线运行」`;
+  } else if(s.intended){
+    el.innerHTML = `<span style="color:#d46b08">● 掉线/心跳异常</span>（心跳 ${hbTxt}），健康检查会自动重启（最长约 1 分钟）…`;
+  } else {
+    el.innerHTML = `<span class="no">● 已停止</span>，当前不会自动回复`;
+  }
+  document.getElementById('btnStart').disabled = s.running && s.healthy;
+  document.getElementById('btnStop').disabled = !s.intended;
+}
+async function workerStart(){
+  document.getElementById('workerState').textContent='启动中…（首次会自动拉起调试 Edge，约 10 秒）';
+  const r = await api('/worker/start',{method:'POST'});
+  if(r.error){
+    document.getElementById('workerState').innerHTML = `<span class="no">启动失败：${esc(r.error)}</span>`;
+    document.getElementById('btnStart').disabled = false;
+    return;
+  }
+  setTimeout(loadWorker, 3000);
+}
+async function workerStop(){
+  await api('/worker/stop',{method:'POST'});
+  setTimeout(loadWorker, 800);
+}
+
+// 概览
+async function loadStats(){
+  const s = await api('/stats');
+  document.getElementById('statCards').innerHTML = [
+    ['启用身份',s.personas],['客户数',s.customers],['今日回复',s.replies_today],['累计回复',s.replies_total]
+  ].map(([l,n])=>`<div class="stat"><div class="n">${n??0}</div><div class="l">${l}</div></div>`).join('');
+}
+
+// AI 人设
+async function loadPersona(){
+  const p = await api('/persona');
+  pPersona.value = p.persona || '';
+  document.getElementById('pPromptPreview').textContent = p.preview_system_prompt || '';
+  const routes = p.persona_routes || [];
+  document.getElementById('pRouteList').innerHTML = routes.length
+    ? routes.map(r=>`<div style="margin-bottom:8px"><b>${esc(r.name)}</b>
+        <span class="muted">商品ID：${esc((r.item_ids||[]).join(', ')||'-')} · 链接：${esc((r.url_patterns||[]).join(', ')||'-')} · 关键词：${esc((r.keywords||[]).join(', ')||'-')}</span></div>`).join('')
+    : '未配置。可在 config.yml 的 persona_routes.routes 中添加。';
+}
+async function savePersona(){
+  const r = await api('/persona',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({persona:pPersona.value})});
+  document.getElementById('pPromptPreview').textContent = r.preview_system_prompt || '';
+  const s=document.getElementById('pSaved'); s.textContent='✓ 已保存，下条回复即生效';
+  setTimeout(()=>s.textContent='',2500);
+}
+
+// ===== 身份管理 =====
+const splitList = s => (s||'').split(/[,，\s]+/).map(x=>x.trim()).filter(Boolean);
+let agSlotSeq = 0;
+function slotRowHTML(s={}){
+  const i = ++agSlotSeq;
+  return `<div class="slot-row" data-slot="${i}">
+    <input type="text" class="k" placeholder="字段key(英文)" value="${esc(s.key||'')}" data-f="key">
+    <input type="text" placeholder="中文名(如:用途)" value="${esc(s.label||'')}" data-f="label">
+    <input type="text" placeholder="说明(给AI看,可选)" value="${esc(s.desc||'')}" data-f="desc">
+    <label style="white-space:nowrap;margin:0"><input type="checkbox" style="width:auto" ${s.optional?'checked':''} data-f="optional"> 可选</label>
+    <button class="btn danger" onclick="this.closest('.slot-row').remove()">×</button>
+  </div>`;
+}
+function addSlot(s){ document.getElementById('agSlots').insertAdjacentHTML('beforeend', slotRowHTML(s||{})); }
+function collectSlots(){
+  return [...document.querySelectorAll('#agSlots .slot-row')].map(row=>{
+    const g=f=>row.querySelector(`[data-f="${f}"]`);
+    return {key:g('key').value.trim(), label:g('label').value.trim(),
+            desc:g('desc').value.trim(), optional:g('optional').checked};
+  }).filter(s=>s.key);
+}
+function onGoalTypeChange(){
+  document.getElementById('agSlotsWrap').hidden = document.getElementById('agGoalType').value!=='collect';
+}
+function resetAgentForm(){
+  agId.value=''; agName.value=''; agPri.value='0'; agEnabled.value='1';
+  agKeywords.value=''; agItemIds.value=''; agUrls.value='';
+  agPersona.value=''; agGoalType.value='none'; agGoalText.value='';
+  document.getElementById('agSlots').innerHTML=''; onGoalTypeChange();
+  document.getElementById('agFormTitle').textContent='新建身份';
+}
+async function loadAgents(){
+  const list = await api('/personas');
+  document.getElementById('agCount').textContent=`(${list.length})`;
+  window._agents = list;
+  document.getElementById('agList').innerHTML = list.map(a=>{
+    const cond = [
+      a.keywords.length?'词:'+a.keywords.join('/'):'',
+      a.item_ids.length?'品:'+a.item_ids.join('/'):'',
+      a.url_patterns.length?'链:'+a.url_patterns.join('/'):'',
+    ].filter(Boolean).join(' · ')||'<span class="muted">未设条件</span>';
+    const gt={collect:'收集需求',answer:'答疑',none:'无'}[a.goal_type]||a.goal_type;
+    return `<tr>
+      <td><b>${esc(a.name)}</b></td><td style="font-size:12px">${cond}</td>
+      <td><span class="pill ${a.goal_type}">${gt}</span>${a.goal_type==='collect'?` <span class="muted">${(a.slots||[]).length}槽</span>`:''}</td>
+      <td>${a.priority}</td><td>${a.enabled?'<span class=ok>启用</span>':'<span class=no>停用</span>'}</td>
+      <td><button class="btn ghost" onclick="editAgent(${a.id})">编辑</button>
+          <button class="btn danger" onclick="delAgent(${a.id})">删除</button></td></tr>`;
+  }).join('') || '<tr><td colspan=6 class="muted">暂无身份，先在上面新建</td></tr>';
+}
+function editAgent(id){
+  const a=(window._agents||[]).find(x=>x.id===id); if(!a)return;
+  resetAgentForm();
+  agId.value=a.id; agName.value=a.name; agPri.value=a.priority; agEnabled.value=a.enabled?'1':'0';
+  agKeywords.value=(a.keywords||[]).join(', '); agItemIds.value=(a.item_ids||[]).join(', ');
+  agUrls.value=(a.url_patterns||[]).join(', '); agPersona.value=a.persona_text||'';
+  agGoalType.value=a.goal_type||'none'; agGoalText.value=a.goal_text||'';
+  (a.slots||[]).forEach(addSlot); onGoalTypeChange();
+  document.getElementById('agFormTitle').textContent='编辑身份：'+a.name;
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+async function saveAgent(){
+  const body={
+    id: agId.value? +agId.value : null,
+    name: agName.value.trim(), priority:+agPri.value, enabled: agEnabled.value==='1',
+    keywords: splitList(agKeywords.value), item_ids: splitList(agItemIds.value),
+    url_patterns: splitList(agUrls.value), persona_text: agPersona.value,
+    goal_type: agGoalType.value, goal_text: agGoalText.value.trim(), slots: collectSlots(),
+  };
+  if(!body.name) return alert('身份名称必填');
+  await api('/personas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const s=document.getElementById('agSaved'); s.textContent='✓ 已保存';
+  setTimeout(()=>s.textContent='',2000);
+  resetAgentForm(); loadAgents();
+}
+async function delAgent(id){ if(!confirm('删除这个身份？'))return; await api('/personas/'+id,{method:'DELETE'}); loadAgents(); }
+async function collectToForm(){
+  const v=agCollect.value.trim(); if(!v) return;
+  const out=document.getElementById('agCollectOut');
+  out.innerHTML='<span class="muted">采集商品 + AI 生成身份中…（约 10~20 秒）</span>';
+  let r; try{ r=await api('/personas/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:v,item_id:/^\d{6,}$/.test(v)?v:''})}); }
+  catch{ out.innerHTML='<span class="no">请求失败</span>'; return; }
+  if(r.error && !r.draft){ out.innerHTML='<span class="no">'+esc(r.error)+'</span>'; return; }
+  const it=r.item||{}, d=r.draft||{};
+  // 用 AI 生成的草稿预填整个表单
+  resetAgentForm();
+  agName.value=(d.name||it.title||'').slice(0,30);
+  agItemIds.value=(d.item_ids&&d.item_ids[0])||it.item_id||'';
+  agPersona.value=d.persona_text||'';
+  agGoalType.value=d.goal_type||'answer';
+  agGoalText.value=d.goal_text||'';
+  onGoalTypeChange();
+  (d.slots||[]).forEach(addSlot);
+  document.getElementById('agFormTitle').textContent='新建身份（AI 已根据商品生成，确认后保存）';
+  const gt={collect:'收集需求',answer:'答疑',none:'无目标'}[d.goal_type]||d.goal_type;
+  const imgs=(it.images||[]).slice(0,4).map(u=>`<img src="${esc(u)}" style="height:46px;border-radius:6px;margin-right:6px">`).join('');
+  out.innerHTML=`<span class="ok">✅ 已生成</span> 商品：${esc((it.title||'-').slice(0,36))} · 价格：${esc(it.price||'-')} · 目标：<b>${esc(gt)}</b>${(d.slots&&d.slots.length)?'（'+d.slots.length+'个槽位）':''}`
+    + (it.error?` <span class="no">（采集提示：${esc(it.error.slice(0,30))}）</span>`:'')
+    + `<div style="margin-top:6px">${imgs}</div>`;
+}
+
+// ===== 报价策略 =====
+function resetPricingForm(){
+  prCategory.value=''; prRange.value=''; prTier.value='low_price'; prEnabled.value='1';
+  prKeywords.value=''; prBase.value=''; prLow.value=''; prUp.value='';
+  document.getElementById('prFormTitle').textContent='新增/编辑报价策略';
+}
+async function loadPricing(){
+  const list = await api('/pricing');
+  window._pricing = list;
+  document.getElementById('prCount').textContent=`(${list.length})`;
+  document.getElementById('prList').innerHTML = list.map(p=>`<tr>
+    <td><b>${esc(p.category)}</b></td><td>${esc(p.price_range||'-')}</td>
+    <td style="font-size:12px">${esc((p.keywords||[]).join('/')||'-')}</td>
+    <td>${esc(p.tier||'')}</td>
+    <td>${p.enabled?'<span class=ok>启用</span>':'<span class=no>停用</span>'}</td>
+    <td><button class="btn ghost" onclick="editPricing('${encodeURIComponent(p.category)}')">编辑</button>
+        <button class="btn danger" onclick="delPricing('${encodeURIComponent(p.category)}')">删除</button></td></tr>`).join('')
+    || '<tr><td colspan=6 class="muted">暂无策略，先在上面新增</td></tr>';
+}
+function editPricing(encCat){
+  const cat=decodeURIComponent(encCat);
+  const p=(window._pricing||[]).find(x=>x.category===cat); if(!p)return;
+  prCategory.value=p.category; prRange.value=p.price_range||''; prTier.value=p.tier||'low_price';
+  prEnabled.value=p.enabled?'1':'0'; prKeywords.value=(p.keywords||[]).join(', ');
+  prBase.value=p.base_prompt||''; prLow.value=p.low_budget_prompt||''; prUp.value=p.upselling_prompt||'';
+  document.getElementById('prFormTitle').textContent='编辑报价策略：'+p.category;
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+async function savePricing(){
+  const body={category:prCategory.value.trim(), keywords:splitList(prKeywords.value),
+    price_range:prRange.value.trim(), tier:prTier.value, enabled:prEnabled.value==='1',
+    base_prompt:prBase.value, low_budget_prompt:prLow.value, upselling_prompt:prUp.value};
+  if(!body.category) return alert('类目名必填');
+  await api('/pricing',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const s=document.getElementById('prSaved'); s.textContent='✓ 已保存'; setTimeout(()=>s.textContent='',2000);
+  resetPricingForm(); loadPricing();
+}
+async function delPricing(encCat){ if(!confirm('删除这条报价策略？'))return; await api('/pricing/'+encCat,{method:'DELETE'}); loadPricing(); }
+
+// ===== 多轮试聊 =====
+const TC_SID='ui';
+async function fillPersonaSelect(){
+  const list = await api('/personas');
+  const sel=document.getElementById('tcPersona');
+  sel.innerHTML='<option value="">（按商品/关键词自动判断）</option>'+
+    list.map(a=>`<option value="${a.id}">${esc(a.name)}（${({collect:'收集需求',answer:'答疑',none:'无目标'}[a.goal_type])}）</option>`).join('');
+}
+function bubble(role,text){
+  const buyer = role==='buyer';
+  return `<div class="msg ${buyer?'buyer':'seller'}"><div class="who">${buyer?'买家(你)':'AI 卖家'}</div>${esc(text)}</div>`;
+}
+function renderTcMemory(mem){
+  const box=document.getElementById('tcMem');
+  if(!mem){ box.innerHTML='<span class="muted">还没开始对话</span>'; return; }
+  let html='';
+  if(mem.summary) html+=`<div style="margin-bottom:8px">${esc(mem.summary).replace(/\n/g,'<br>')}</div>`;
+  const slots=mem.slots||{};
+  const ks=Object.keys(slots);
+  if(ks.length){ html+='<div style="margin-top:6px">'+ks.map(k=>`<div class="slotbar"><span>${esc(k)}</span><span class="v">${esc(slots[k])}</span></div>`).join('')+'</div>'; }
+  if(mem.goal_done) html+='<div style="margin-top:8px"><span class="pill done">✓ 需求已确认</span></div>';
+  else if(mem.goal_stage==='confirming') html+='<div style="margin-top:8px"><span class="pill answer">复述确认中…等客户确认</span></div>';
+  if(mem.doc) html+=`<div style="margin-top:10px"><label>📄 需求文档</label><div class="doc-box">${esc(mem.doc)}</div></div>`;
+  box.innerHTML = html || '<span class="muted">暂无结构化记忆（该身份可能无目标）</span>';
+}
+async function loadTestChat(){
+  await fillPersonaSelect();
+  const r = await api('/test-chat/'+TC_SID);
+  const chat=document.getElementById('tcChat');
+  chat.innerHTML = (r.messages||[]).map(m=>bubble(m.role==='buyer'?'buyer':'seller',m.content)).join('')
+    || '<div class="muted" style="margin:auto">选好身份，以买家口吻发第一句试试～</div>';
+  chat.scrollTop=chat.scrollHeight;
+  renderTcMemory(r.memory);
+}
+async function sendTestChat(){
+  const t=tcMsg.value.trim(); if(!t)return;
+  const chat=document.getElementById('tcChat');
+  if(chat.querySelector('.muted')) chat.innerHTML='';
+  chat.insertAdjacentHTML('beforeend', bubble('buyer',t));
+  chat.insertAdjacentHTML('beforeend', '<div class="msg seller" id="tcThinking"><div class="who">AI 卖家</div>思考中…</div>');
+  chat.scrollTop=chat.scrollHeight; tcMsg.value='';
+  const body={session_id:TC_SID, text:t, item_id:tcItem.value.trim(), link_url:tcLink.value.trim()};
+  const pid=document.getElementById('tcPersona').value; if(pid) body.persona_id=+pid;
+  const r = await api('/test-chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  document.getElementById('tcThinking').remove();
+  chat.insertAdjacentHTML('beforeend', bubble('seller',r.reply));
+  chat.scrollTop=chat.scrollHeight;
+  renderTcMemory(r.memory);
+}
+async function resetTestChat(){
+  await api('/test-chat/'+TC_SID,{method:'DELETE'});
+  loadTestChat();
+}
+
+// ===== 客户记忆 =====
+async function loadMemList(){
+  const list = await api('/memory?limit=200');
+  document.getElementById('memList').innerHTML = list.map(m=>{
+    const who = esc(m.buyer_nick||m.buyer_id||m.chat_id||'').slice(0,18)||'-';
+    const enc = encodeURIComponent(m.chat_id);
+    const paused = m.ai_paused?1:0;
+    const unread = m.unread_count||0;
+    const pauseBtn = paused
+      ? `<button class="btn" onclick="togglePause('${enc}',0)">恢复AI</button>`
+      : `<button class="btn ghost" onclick="togglePause('${enc}',1)">暂停AI</button>`;
+    return `<tr${paused?' style="background:#fff7e6"':''}>
+      <td>${who}${paused?' <span class="pill answer">人工接管</span>':''}</td>
+      <td>${esc(m.item_title||m.item_id||'-')}</td>
+      <td>${esc(m.persona_name||'-')}</td>
+      <td style="max-width:260px">${esc((m.summary||'').slice(0,80))}</td>
+      <td>${m.goal_done?'<span class="pill done">已完成</span>':'<span class="muted">进行中</span>'}</td>
+      <td>${unread>0?`<b style="color:#cf1322">${unread}</b>`:'0'}</td>
+      <td class="muted" style="font-size:12px">${m.last_message_at?fmt(m.last_message_at):(m.updated_at?fmt(m.updated_at):'-')}</td>
+      <td>${pauseBtn}
+          <button class="btn ghost" onclick="viewMem('${enc}')">查看</button>
+          <button class="btn danger" onclick="clearMem('${enc}')">清空</button></td></tr>`;
+  }).join('') || '<tr><td colspan=8 class="muted">暂无客户记忆，自动回复或试聊后会出现</td></tr>';
+}
+let _curMemKey='';
+async function viewMem(encKey){
+  const key=decodeURIComponent(encKey); _curMemKey=key;
+  const r = await api('/memory/'+encKey);
+  document.getElementById('memDetailCard').hidden=false;
+  document.getElementById('memDetailKey').textContent=key;
+  document.getElementById('memMsgs').innerHTML=(r.messages||[]).map(m=>bubble(m.role==='buyer'?'buyer':'seller',m.content)).join('')||'<span class="muted">无对话</span>';
+  const mem=r.memory||{};
+  document.getElementById('memSummary').value=mem.summary||'';
+  document.getElementById('memSlots').value=JSON.stringify(mem.slots||{},null,2);
+  const dw=document.getElementById('memDocWrap');
+  if(mem.doc){ dw.hidden=false; document.getElementById('memDoc').textContent=mem.doc; } else dw.hidden=true;
+  document.getElementById('memDetailCard').scrollIntoView({behavior:'smooth'});
+}
+async function saveMemDetail(){
+  let slots; try{ slots=JSON.parse(document.getElementById('memSlots').value||'{}'); }
+  catch{ return alert('槽位 JSON 格式不对'); }
+  await api('/memory/'+encodeURIComponent(_curMemKey),{method:'PUT',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({summary:document.getElementById('memSummary').value, slots})});
+  const s=document.getElementById('memSaved'); s.textContent='✓ 已保存'; setTimeout(()=>s.textContent='',2000);
+  loadMemList();
+}
+async function clearMem(encKey){
+  if(!confirm('清空这位客户的记忆？（对话记录保留，AI 维护的需求摘要/槽位会清掉）'))return;
+  await api('/memory/'+encKey,{method:'DELETE'});
+  document.getElementById('memDetailCard').hidden=true; loadMemList();
+}
+async function togglePause(encKey,paused){
+  await api('/memory/'+encKey+'/pause',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({paused:!!paused})});
+  loadMemList();
+}
+
+// 日志
+async function loadLogs(){
+  const list = await api('/logs?limit=200');
+  document.getElementById('lList').innerHTML = list.map(l=>`<tr>
+    <td class="muted">${fmt(l.created_at)}</td><td>${esc(l.buyer_msg)}</td><td>${esc(l.reply)}</td>
+    <td><span class="pill ${l.source}">${l.source}</span></td>
+    <td>${l.sent?'<span class=ok>✓</span>':'<span class=no>✗</span>'}</td></tr>`).join('')
+    || '<tr><td colspan=5 class="muted">暂无日志</td></tr>';
+}
+
+// 设置
+async function loadCfg(){
+  const c = await api('/config');
+  const rows = [
+    ['AI 开关', c.ai_enabled?'开':'关'],['AI 模型', c.ai_model],['AI 接口', c.ai_base_url],
+    ['回复延迟范围(秒)', (c.reply_delay||[]).join(' ~ ')],
+    ['基础思考(秒)', (c.reply_delay_base||[]).join(' ~ ')],['每日上限', c.daily_reply_limit],
+    ['营业时段', (c.business_hours||[]).join(' - ')+' 点'],
+    ['仅回当前会话', c.reply_to_active_only?'是':'否(精准路由)'],['路由兜底', c.route_fallback],
+    ['链接身份路由', `${c.persona_routes_enabled?'开':'关'}（${c.persona_routes_count||0} 条）`],
+    ['默认兜底回复', c.fallback_reply],
+  ];
+  document.getElementById('cfgView').innerHTML = rows.map(([k,v])=>`<div class="k">${k}</div><div>${esc(v)}</div>`).join('');
+}
+
+// 顶栏配置摘要
+async function initHeader(){
+  const c = await api('/config');
+  document.getElementById('hdrCfg').innerHTML =
+    `AI:${c.ai_model} · ${c.reply_to_active_only?'仅当前会话':'精准路由'}`;
+}
+initHeader(); loadStats(); loadWorker(); loadPersona();
+// 概览可见时每 15 秒刷新一次 Worker 心跳/健康状态
+setInterval(()=>{ if(!document.getElementById('overview').hidden) loadWorker(); }, 15000);
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+# Web 后端
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pyyaml==6.0.2
+
+# 浏览器自动化
+playwright==1.49.1
+
+# AI（OpenAI 兼容）
+openai==1.59.6
+
+# 向量检索（话术学习）
+numpy==2.2.1
+
+# 工具
+loguru==0.7.3
+httpx==0.28.1

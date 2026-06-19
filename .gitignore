@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.pyc
+config.yml
+data/
+browser_data/
+chrome_debug/
+edge_debug/
+research/output/
+logs/
+*.log
+.idea/
+.vscode/
+.DS_Store
+*.db
+.env

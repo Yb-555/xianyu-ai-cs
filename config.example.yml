@@ -1,0 +1,78 @@
+# 复制为 config.yml 后修改。config.yml 不入库（含密钥）。
+
+server:
+  host: "127.0.0.1"
+  port: 8090
+
+# 浏览器接管方式：
+#   cdp   -> 接管你已打开的 Chrome（需用 --remote-debugging-port=9222 启动 Chrome）
+#   persistent -> Playwright 用独立 user_data_dir 自己开浏览器（首次需手动登录一次）
+browser:
+  mode: "cdp"
+  cdp_url: "http://127.0.0.1:9222"
+  user_data_dir: "./browser_data"
+  headless: false
+  workbench_url: "https://seller.goofish.com/?site=COMMONPRO#/im"
+
+# AI：OpenAI 兼容接口。当前配置为 DeepSeek。
+ai:
+  enabled: true
+  base_url: "https://api.deepseek.com"
+  api_key: "sk-xxxx"          # 填你的 DeepSeek API Key
+  model: "deepseek-chat"       # 或 deepseek-reasoner
+  temperature: 0.6
+  max_tokens: 400
+  # 系统人设：让 AI 以店铺客服口吻回复
+  system_prompt: |
+    你是一名闲鱼店铺的专业客服。回复要简短、口语化、友好，符合闲鱼买卖习惯。
+    不要承诺无法兑现的事（如随意改价、不合理包邮）。涉及金额/发货等关键问题时，
+    给出稳妥话术并提示「稍等帮你确认」，不要乱答。
+
+# 按不同商品链接 / 商品 ID / 关键词切换 AI 身份。
+# 匹配顺序按 routes 从上到下；item_ids 最准，其次 url_patterns，最后 keywords。
+# url_patterns 支持普通包含、通配符（*、?）和 re: 正则。
+persona_routes:
+  enabled: true
+  routes:
+    - name: "web_dev"
+      item_ids: ["1234567890"]
+      url_patterns: ["goofish.com/item?id=1234567890", "re:itemId=1234567890"]
+      keywords: ["网页", "网站", "建站", "前端"]
+      persona: |
+        你是闲鱼上承接「网页/网站定制开发」的个人开发者本人。
+        回复要像本人聊天，简短、专业、稳妥；先了解需求（用途/页面数/参考样式/工期），
+        不要乱报价，价格按商品标价或区间给出，拿不准就说「稍等帮你确认」。
+    - name: "digital_goods"
+      item_ids: ["9876543210"]
+      keywords: ["数码", "配件", "正品", "发货"]
+      persona: |
+        你是闲鱼上卖数码配件的个人卖家本人。
+        买家问发货、正品、规格时要稳妥回答，涉及承诺先说「稍等帮你确认」，不要乱答。
+
+# 话术学习（RAG）
+# ⚠️ DeepSeek 没有 embedding 接口！retrieval 三选一：
+#   lexical   —— 字符相似度，零配置、立即可用（默认）
+#   embedding —— 向量检索，需另配一个支持 embedding 的 OpenAI 兼容服务
+#   auto      —— 配了 embedding 就用，否则回落 lexical
+knowledge:
+  enabled: true
+  retrieval: "lexical"
+  top_k: 4            # 每次检索注入的相似话术条数
+  min_score: 0.20     # 相似度阈值（lexical 用 0.15~0.25，embedding 用 0.30~0.45）
+  # —— 如要启用 embedding，把 retrieval 改为 embedding/auto 并填下面 ——
+  embedding_base_url: ""   # 如硅基流动 https://api.siliconflow.cn/v1
+  embedding_api_key: ""
+  embedding_model: ""      # 如 BAAI/bge-large-zh-v1.5
+
+# 频率与运营控制（限流 / 营业时段 / 自然回复节奏）
+safety:
+  reply_min_delay_sec: 3      # 回复前最小延迟
+  reply_max_delay_sec: 9      # 回复前最大延迟
+  daily_reply_limit: 500      # 每日自动回复上限
+  business_hours: [8, 23]     # 营业时段 [起,止]，此区间外不自动回复
+  auto_rate_enabled: false    # 自动评价默认关闭，调研确认后再开
+  auto_rate_delay_sec: 1800   # 订单完成后延迟多久评价
+  daily_rate_limit: 100
+
+# 回复优先级（高到低）：指定商品 > 商品专属关键词 > 通用关键词 > 默认 > AI
+fallback_reply: "稍等哈，马上回复你～"
