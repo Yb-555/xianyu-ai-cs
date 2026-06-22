@@ -3,13 +3,13 @@
 > 接管自己闲鱼店铺的卖家工作台，**按商品自动切换 AI 身份**回复买家咨询；
 > 每个客户独立记忆、互不串台，支持需求收集、报价策略、商品采集与人工接管。
 >
-> 技术栈：**Playwright 浏览器自动化 + FastAPI 后端 + LLM（DeepSeek，OpenAI 兼容）+ RAG 话术检索 + SQLite**
+> 技术栈：**Playwright 浏览器自动化 + FastAPI 后端 + LLM（DeepSeek，OpenAI 兼容）+ 多身份 Agent + 客户记忆 + SQLite**
 
 ---
 
 ## 这是什么
 
-一套面向**个人电商店铺**的 AI 客服自动化系统。它复用你已登录的浏览器接管闲鱼卖家工作台，监听买家消息，结合「商品身份 + 客户记忆 + 话术检索」让大模型生成贴合店铺口吻的回复，并精准回到对应对话框发送。
+一套面向**个人电商店铺**的 AI 客服自动化系统。它复用你已登录的浏览器接管闲鱼卖家工作台，监听买家消息，结合「商品身份 + 目标流程 + 客户记忆」让大模型生成贴合店铺口吻的回复，并精准回到对应对话框发送。
 
 核心解决三个真实痛点：
 
@@ -27,7 +27,8 @@
 |---|---|---|
 | **按商品切换身份** | 按 商品ID / 链接 / 关键词 命中对应"卖家身份"（人设 + 目标 + 报价），**会话级锁定**不中途跳变 | `core/persona.py` |
 | **每客户独立记忆** | 槽位抽取、滚动摘要、收尾复述确认，集齐需求自动生成「需求文档」，A/B 客户互不串台 | `core/memory.py` |
-| **RAG 话术检索** | 历史问答 + 人工话术存样本，新消息检索最相似话术做 few-shot 注入；支持词法 / 向量两种检索 | `core/rules.py` |
+| **有状态目标 Agent** | 收集需求型身份按「收集 → 复述确认 → 生成需求文档」状态机驱动，AI 只追问缺失项、集齐即收尾 | `core/persona.py`、`core/memory.py` |
+| **话术库 + 向量化** | 历史问答 / 人工话术沉淀为样本，支持文本向量化（embedding，OpenAI 兼容）做话术学习 | `db`、`core/ai_client.py` |
 | **AI 自动生成身份** | 贴一个商品链接 → 采集标题/价格/详情 → AI 判断服务类/实物类 → 自动产出人设、目标、槽位草稿 | `core/persona_gen.py`、`core/item_collector.py` |
 | **精准不回错人** | 发送前切到对应买家对话框并**回读买家 userId 校验**，多消息**串行处理**，消息 `msgId` 去重 | `worker/im_listener.py` |
 | **报价策略** | 按类目配置价格区间 / 低预算话术 / 加售引导，AI 报价更稳 | `core/pricing.py` |
@@ -60,7 +61,7 @@
  → im_listener 从 WebSocket 帧解析(文本 / cid / itemId / 买家 userId / msgId)
  → 持久化去重(msgId 已入库则跳过)
  → memory 取该会话记忆；persona 解析/沿用身份
- → rules 决策回复(关键词规则 → AI[人设 + 目标 + 记忆 + 话术检索] → 兜底)
+ → rules 决策回复(关键词规则 → AI[人设 + 目标 + 报价策略 + 客户记忆] → 兜底)
  → 若该客户被「人工接管」则只记录不回
  → 按买家 userId 切到对应对话框 + 回读校验 → 发送(串行锁)
  → 写 messages / reply_logs，memory 抽槽位 / 更新摘要 / 必要时生成需求文档
@@ -75,7 +76,7 @@
 - **后端**：Python 3.13 · FastAPI · Uvicorn · Pydantic
 - **浏览器自动化**：Playwright（CDP 接管 / 持久化两种模式）
 - **大模型**：OpenAI 兼容客户端（默认 DeepSeek），改 `base_url` 即可换厂商
-- **检索**：词法相似度 / 向量 embedding（话术 RAG）
+- **向量化**：文本 embedding（话术库沉淀，OpenAI 兼容接口）
 - **存储**：SQLite（9 张表，含消息去重、客户记忆、审计日志）
 - **前端**：原生 HTML/JS 单页后台（无构建）
 
@@ -104,7 +105,7 @@ copy config.example.yml config.yml    # 填入你的 ai.api_key（DeepSeek）
 
 ## 工程亮点（面向阅读源码）
 
-- **真·LLM 应用工程**：不是简单调 API，而是把 **prompt 编排（人设 + 目标 + 记忆 + 话术）、多身份路由、长期记忆、RAG 检索** 组合成一个可用系统。
+- **真·LLM 应用工程**：不是简单调 API，而是把 **动态 prompt 编排（安全约束 + 人设 + 目标 + 报价 + 记忆）、多身份路由、有状态目标流程、长期记忆** 组合成一个可用系统。
 - **状态隔离与一致性**：按会话隔离记忆 + 发送前 userId 回读校验 + 串行锁 + msgId 去重，系统性地解决了"回错人 / 串台 / 重复回复"。
 - **可靠性设计**：子进程心跳、掉线自动重启、单实例端口锁，面向"长时间无人值守运行"。
 - **可配置与可扩展**：身份 / 报价 / 话术 / 规则全部后台可配、即时生效；LLM 厂商可一行配置切换。
@@ -118,7 +119,7 @@ copy config.example.yml config.yml    # 填入你的 ai.api_key（DeepSeek）
 | 配置 | 说明 |
 |---|---|
 | `ai.api_key` / `ai.base_url` / `ai.model` | LLM 接入（默认 DeepSeek，OpenAI 兼容） |
-| `knowledge.retrieval` | 话术检索方式：`lexical`（零配置）/ `embedding`（需向量服务） |
+| `knowledge.*` | 话术库向量化（embedding）相关配置 |
 | `reply_delay.*` | 回复节奏参数（自然延迟） |
 | `safety.business_hours` / `daily_reply_limit` | 营业时段 / 每日回复上限（限流） |
 | `safety.require_cid` / `verify_sender_uid` | 防串台 / 发送前校验买家身份 |

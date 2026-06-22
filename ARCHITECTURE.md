@@ -104,7 +104,7 @@ D:\xianyu\v2\
 | `messages` | 所有对话消息（按 chat_id 会话隔离）；含 msg_id 去重、raw_json 原始报文 |
 | `customer_memory` | 每客户独立记忆：需求摘要、槽位、目标状态、人工接管、未读/状态 |
 | `personas` | AI 身份（命中条件 + 人设 + 目标设定 + 槽位） |
-| `qa_pairs` | 话术库（学习样本，供 few-shot 检索） |
+| `qa_pairs` | 话术库（学习样本，存储 + 可向量化 embedding） |
 | `rules` | 关键词规则 |
 | `reply_logs` | 回复日志（审计） |
 | `settings` | 键值设置（默认人设、可服务时间等） |
@@ -116,5 +116,5 @@ D:\xianyu\v2\
 - `ai.*` — DeepSeek 接口与 key、模型、温度
 - `browser.*` — CDP 接管地址、工作台 URL、Edge 路径
 - `safety.*` — 拟人延迟、每日上限、营业时段、`require_cid`(抓不到cid不回)、路由兜底
-- `knowledge.*` — 话术检索方式（lexical 词法 / embedding）
+- `knowledge.*` — 话术库向量化（embedding）相关配置
 - `persona_routes.*` — 身份切换总开关（具体身份现在在后台「身份管理」里存数据库）

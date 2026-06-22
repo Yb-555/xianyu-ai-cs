@@ -49,7 +49,7 @@ persona_routes:
         你是闲鱼上卖数码配件的个人卖家本人。
         买家问发货、正品、规格时要稳妥回答，涉及承诺先说「稍等帮你确认」，不要乱答。
 
-# 话术学习（RAG）
+# 话术库（存储 + 向量化 embedding，话术沉淀用）
 # ⚠️ DeepSeek 没有 embedding 接口！retrieval 三选一：
 #   lexical   —— 字符相似度，零配置、立即可用（默认）
 #   embedding —— 向量检索，需另配一个支持 embedding 的 OpenAI 兼容服务
